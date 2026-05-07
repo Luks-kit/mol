@@ -1,0 +1,70 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-O2",
+      "-Wall",
+      "-Wextra",
+      "-Iinc",
+      "-g",
+      "-c",
+      "-o",
+      "build/arena.o",
+      "src/arena.c"
+    ],
+    "directory": "/home/luks/langauge/mol",
+    "file": "/home/luks/langauge/mol/src/arena.c",
+    "output": "/home/luks/langauge/mol/build/arena.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-O2",
+      "-Wall",
+      "-Wextra",
+      "-Iinc",
+      "-g",
+      "-c",
+      "-o",
+      "build/ast.o",
+      "src/ast.c"
+    ],
+    "directory": "/home/luks/langauge/mol",
+    "file": "/home/luks/langauge/mol/src/ast.c",
+    "output": "/home/luks/langauge/mol/build/ast.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-O2",
+      "-Wall",
+      "-Wextra",
+      "-Iinc",
+      "-g",
+      "-c",
+      "-o",
+      "build/lex.o",
+      "src/lex.c"
+    ],
+    "directory": "/home/luks/langauge/mol",
+    "file": "/home/luks/langauge/mol/src/lex.c",
+    "output": "/home/luks/langauge/mol/build/lex.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-O2",
+      "-Wall",
+      "-Wextra",
+      "-Iinc",
+      "-g",
+      "-c",
+      "-o",
+      "build/parse.o",
+      "src/parse.c"
+    ],
+    "directory": "/home/luks/langauge/mol",
+    "file": "/home/luks/langauge/mol/src/parse.c",
+    "output": "/home/luks/langauge/mol/build/parse.o"
+  }
+]

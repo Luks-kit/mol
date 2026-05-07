@@ -1,0 +1,3 @@
+main:() -> (ret i64) do 
+    ret := 0i64
+end
