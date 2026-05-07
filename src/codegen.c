@@ -1,5 +1,6 @@
 // ─── codegen.c — Mol → DVM assembly text emitter ─────────────────────────────
 #include "codegen.h"
+#include "check.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -680,7 +681,7 @@ static void cgen_proc(CGen *g, Checker *c, Node *n) {
         for (int i = 0; i < np; i++) {
             Node *fd = in_tup->type_tuple.fields[i];
             Type *ft = fd->fielddecl.type
-                     ? check_expr(c, fd->fielddecl.type)
+                     ? resolve_type(c, fd->fielddecl.type)
                      : ty_word;
             // allocate a local and copy from the above-bp slot
             Local *l = local_define(g, fd->fielddecl.name, ft, type_is_float(ft));
@@ -696,7 +697,7 @@ static void cgen_proc(CGen *g, Checker *c, Node *n) {
         for (int i = 0; i < out_tup->type_tuple.nfields; i++) {
             Node *fd = out_tup->type_tuple.fields[i];
             Type *ft = fd->fielddecl.type
-                     ? check_expr(c, fd->fielddecl.type)
+                     ? resolve_type(c, fd->fielddecl.type)
                      : ty_word;
             local_define(g, fd->fielddecl.name, ft, type_is_float(ft));
         }

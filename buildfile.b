@@ -4,7 +4,7 @@ compile(src, obj) {
     auto cmd, cc, cflags;
 
     cc = "gcc";
-    cflags = "-O2 -Wall -Wextra -Iinc -g";
+    cflags = "-Wall -Wextra -Iinc -g";
 
     if (newer(src, obj)) {
         printf("  CC ");
