@@ -719,7 +719,6 @@ const char *cgen_file(CGen *g, Checker *c, Node *file) {
     }
 
     emit(g, "; Mol generated assembly\n.text\n");
-    emit(g, "\nglobal mol_err_stub\nmol_err_stub:\n  halt\n");
 
     for (int i = 0; i < file->block.nstmts; i++) {
         Node *n = file->block.stmts[i];
@@ -730,6 +729,9 @@ const char *cgen_file(CGen *g, Checker *c, Node *file) {
                 cgen_proc(g, c, n);
         }
     }
+    
+    emit(g, "\nglobal mol_err_stub\nmol_err_stub:\n  halt\n");
+
 
     emit_strlits(g);
     emit(g, "\n; end\n");
