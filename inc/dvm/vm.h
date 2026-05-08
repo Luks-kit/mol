@@ -15,6 +15,8 @@
 #define REG_SI 5
 #define REG_EX 6
 #define REG_FX 7
+#define REG_BP 8
+#define REG_SP 9
 
 // ─── Flags ───────────────────────────────────────────────────────────────────
 
@@ -128,17 +130,15 @@ typedef enum __attribute__((packed)) {
 
 typedef union {
     struct {
-        uint64_t ax, bx, cx, dx, di, si, ex, fx;
+        uint64_t ax, bx, cx, dx, di, si, ex, fx, bp, sp;
     };
 
-    uint64_t r[8];
+    uint64_t r[10];
 } GPR;
 
 typedef struct {
     GPR      gpr;
     uint64_t ip;
-    uint64_t sp;
-    uint64_t bp;
     uint64_t fl;
     double   fp[8];
 } RF;

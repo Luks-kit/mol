@@ -54,6 +54,7 @@ typedef enum {
     NODE_PROC_DECL,     // name:(in) -> (out) do ... end  [const flag]
     NODE_VAR_DECL,      // var name type  [:= expr]
     NODE_LET_DECL,      // let name type  [:= expr]
+    NODE_IMPORT,        // import "path/to/lib.dvm"
     // expressions
     NODE_ATOM,          // :foo
     NODE_INT_LIT,       // 42, 5u, 3i8 ...
@@ -93,8 +94,9 @@ typedef enum {
 typedef struct Node Node;
 
 struct Node {
-    NodeKind kind;
-    Loc      loc;
+    NodeKind     kind;
+    Loc          loc;
+    struct Type *type;   // resolved type, filled in by check_file — NULL until then
 
     union {
         // ── NODE_ATOM ─────────────────────────────────────────────────────────
@@ -246,6 +248,12 @@ struct Node {
             Node *type;    // type expression node
         } fielddecl;
 
+        // ── NODE_IMPORT ───────────────────────────────────────────────────────
+        struct {
+            const char *path;  // interned path string, e.g. "lib/io.dvm"
+            size_t      len;
+        } import_path;
+
         // ── NODE_TYPE_NAME ────────────────────────────────────────────────────
         Atom type_name;
 
@@ -314,6 +322,7 @@ Node *ast_var_decl   (Arena *a, Loc loc,
                       Node *type, Node *init, int is_let);
 Node *ast_field_decl (Arena *a, Loc loc,
                       const char *name, size_t namelen, Node *type);
+Node *ast_import     (Arena *a, Loc loc, const char *path, size_t len);
 
 // type expressions
 Node *ast_type_name (Arena *a, Loc loc, const char *name, size_t len);

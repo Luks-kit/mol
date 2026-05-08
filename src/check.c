@@ -106,45 +106,6 @@ static void check_error(Loc loc, const char *fmt, ...) {
 
 #include <stdarg.h>
 
-static const char *node_kind_name(NodeKind kind) {
-    switch (kind) {
-        case NODE_RECORD_DECL: return "NODE_RECORD_DECL";
-        case NODE_PROC_DECL:   return "NODE_PROC_DECL";
-        case NODE_VAR_DECL:    return "NODE_VAR_DECL";
-        case NODE_LET_DECL:    return "NODE_LET_DECL";
-        case NODE_ATOM:        return "NODE_ATOM";
-        case NODE_INT_LIT:     return "NODE_INT_LIT";
-        case NODE_FLOAT_LIT:   return "NODE_FLOAT_LIT";
-        case NODE_STRING_LIT:  return "NODE_STRING_LIT";
-        case NODE_ARRAY_LIT:   return "NODE_ARRAY_LIT";
-        case NODE_MOL_LIT:     return "NODE_MOL_LIT";
-        case NODE_IDENT:       return "NODE_IDENT";
-        case NODE_FIELD:       return "NODE_FIELD";
-        case NODE_INDEX:       return "NODE_INDEX";
-        case NODE_CALL:        return "NODE_CALL";
-        case NODE_ASSIGN:      return "NODE_ASSIGN";
-        case NODE_BINOP:       return "NODE_BINOP";
-        case NODE_UNOP:        return "NODE_UNOP";
-        case NODE_DEREF:       return "NODE_DEREF";
-        case NODE_ADDROF:      return "NODE_ADDROF";
-        case NODE_IF:          return "NODE_IF";
-        case NODE_WHILE:       return "NODE_WHILE";
-        case NODE_LOOP:        return "NODE_LOOP";
-        case NODE_FOR:         return "NODE_FOR";
-        case NODE_CASE:        return "NODE_CASE";
-        case NODE_CASE_ARM:    return "NODE_CASE_ARM";
-        case NODE_EXIT:        return "NODE_EXIT";
-        case NODE_BLOCK:       return "NODE_BLOCK";
-        case NODE_TYPE_NAME:   return "NODE_TYPE_NAME";
-        case NODE_TYPE_PTR:    return "NODE_TYPE_PTR";
-        case NODE_TYPE_ARRAY:  return "NODE_TYPE_ARRAY";
-        case NODE_TYPE_TUPLE:  return "NODE_TYPE_TUPLE";
-        case NODE_TYPE_CONST:  return "NODE_TYPE_CONST";
-        case NODE_FIELD_DECL:  return "NODE_FIELD_DECL";
-        default:               return "NODE_<unknown>";
-    }
-}
-
 // ─── type compatibility ───────────────────────────────────────────────────────
 // TY_WORD is compatible with everything (untyped word).
 // Otherwise types must match structurally.
@@ -180,6 +141,9 @@ static int ty_compat(Type *expected, Type *got) {
     }
 }
 
+// ─── resolve a type-expression node to a Type* ───────────────────────────────
+
+Type *resolve_type(Checker *c, Node *n);
 
 static Field *resolve_fields(Checker *c, Node **field_nodes, int n, int *out_n) {
     Field *fields = arena_alloc(c->arena, sizeof(Field) * (size_t)n);
@@ -259,6 +223,7 @@ Type *resolve_type(Checker *c, Node *n) {
 
 // ─── forward declarations ─────────────────────────────────────────────────────
 
+Type *check_expr(Checker *c, Node *n);
 static void  check_stmt(Checker *c, Node *n);
 static void  check_block(Checker *c, Node *n);
 
@@ -395,7 +360,17 @@ static void register_toplevel(Checker *c, Node *n) {
 
 // ─── expression type checker ──────────────────────────────────────────────────
 
+static Type *check_expr_inner(Checker *c, Node *n);
+
 Type *check_expr(Checker *c, Node *n) {
+    if (!n) return ty_word;
+    if (n->type) return n->type;   // already resolved — cache hit
+    Type *t = check_expr_inner(c, n);
+    n->type = t;
+    return t;
+}
+
+static Type *check_expr_inner(Checker *c, Node *n) {
     switch (n->kind) {
 
         case NODE_INT_LIT: {
@@ -584,8 +559,7 @@ Type *check_expr(Checker *c, Node *n) {
         }
 
         default:
-            check_error(n->loc, "unexpected node in expression: %s",
-                        node_kind_name(n->kind));
+            check_error(n->loc, "unexpected node in expression");
             return ty_word;
     }
 }
@@ -607,6 +581,7 @@ static void check_stmt(Checker *c, Node *n) {
                         "initialiser type does not match declaration");
                 if (!n->vardecl.type) decl_ty = init_ty;
             }
+            n->type = decl_ty;   // annotate for codegen
             scope_define(c->arena, c->scope, n->vardecl.name,
                          n->kind == NODE_LET_DECL ? SYM_LET : SYM_VAR,
                          decl_ty);
@@ -806,10 +781,10 @@ void check_file(Checker *c, Node *file) {
                 check_stmt(c, n);
                 break;
             case NODE_RECORD_DECL:
+            case NODE_IMPORT:
                 break;  // fully handled in register_toplevel
             default:
                 check_error(n->loc, "unexpected node at top level");
         }
     }
 }
-

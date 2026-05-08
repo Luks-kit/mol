@@ -27,6 +27,7 @@ static const KW keywords[] = {
     { "var",   TOK_VAR   },
     { "let",   TOK_LET   },
     { "const", TOK_CONST },
+    { "import",TOK_IMPORT},
     { "do",    TOK_DO    },
     { "end",   TOK_END   },
     { "if",    TOK_IF    },
@@ -339,6 +340,7 @@ const char *tok_kind_name(TokKind kind) {
         case TOK_VAR:        return "'var'";
         case TOK_LET:        return "'let'";
         case TOK_CONST:      return "'const'";
+        case TOK_IMPORT:     return "'import'";
         case TOK_PROC:       return "'proc'";
         case TOK_DO:         return "'do'";
         case TOK_END:        return "'end'";

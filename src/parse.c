@@ -78,7 +78,12 @@ Node *parse_file(Parser *p) {
     while (peek(p).kind != TOK_EOF) {
         Tok t = peek(p);
         Node *node;
-        if (t.kind == TOK_CONST) {
+        if (t.kind == TOK_IMPORT) {
+            next(p);
+            Tok path_tok = expect(p, TOK_STRING);
+            node = ast_import(p->arena, (Loc){p->lex->filename, t.line, t.col},
+                              path_tok.strval.data, path_tok.strval.len);
+        } else if (t.kind == TOK_CONST) {
             next(p);
             node = parse_named_decl(p, 1);
         } else if (t.kind == TOK_VAR || t.kind == TOK_LET) {
@@ -448,7 +453,7 @@ static Node *parse_unary(Parser *p) {
     Loc l = loc(p);
     if (peek(p).kind == TOK_MINUS) { next(p); return ast_unop  (p->arena, l, UOP_NEG, parse_unary(p)); }
     if (peek(p).kind == TOK_TILDE) { next(p); return ast_unop  (p->arena, l, UOP_NOT, parse_unary(p)); }
-    if (peek(p).kind == TOK_AT)    { next(p); return ast_addrof(p->arena, l,              parse_unary(p)); }
+    if (peek(p).kind == TOK_AT)    { next(p); return ast_addrof(p->arena, l,           parse_unary(p)); }
     return parse_primary(p);
 }
 

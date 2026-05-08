@@ -280,3 +280,10 @@ Node *ast_type_const(Arena *a, Loc loc, Node *inner) {
     n->const_inner = inner;
     return n;
 }
+
+Node *ast_import(Arena *a, Loc loc, const char *path, size_t len) {
+    Node *n              = node_new(a, NODE_IMPORT, loc);
+    n->import_path.path  = arena_strndup(a, path, len);
+    n->import_path.len   = len;
+    return n;
+}

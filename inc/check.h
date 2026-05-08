@@ -140,11 +140,13 @@ void checker_init(Checker *c, Arena *arena);
 // Emits errors to stderr and exits on first error.
 void check_file(Checker *c, Node *file);
 
-// Get type of an expression. Needed for code emission.
-Type *check_expr(Checker *c, Node *n);
-// Resolve a type, also needed for code emission
-Type* resolve_type(Checker *c, Node *n);
+// Resolve a type-expression node to a Type*.
+// Used by codegen to get the type of declared fields/params without
+// re-running full expression type checking.
+Type *resolve_type(Checker *c, Node *n);
 
+// Return the type of an expression node (does not mutate checker state).
+Type *check_expr(Checker *c, Node *n);
 
 // ─── Built-in type singletons (initialised by checker_init) ──────────────────
 extern Type *ty_word;

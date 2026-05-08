@@ -17,8 +17,8 @@ typedef enum {
     TOK_VAR,        // var
     TOK_LET,        // let
     TOK_CONST,      // const
-    TOK_PROC,       // (no longer a keyword — proc decls use name:(  syntax)
-                    // kept as reserved to give a good error message
+    TOK_IMPORT,     // import
+    TOK_PROC,       // (reserved — gives good error)
     TOK_DO,         // do
     TOK_END,        // end
     TOK_IF,         // if
