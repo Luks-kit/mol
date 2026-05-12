@@ -142,19 +142,36 @@ static Tok lex_scan(Lexer *l) {
 
     // ── string literal ────────────────────────────────────────────────────────
     if (c == '"') {
-        const char *start = l->cur;
-        // scan to closing quote, honouring \" escapes
+        // process escape sequences into a temporary buffer
+        char *buf = arena_alloc(l->arena, 4096);
+        size_t len = 0;
         while (!at_end(l) && peek_c(l) != '"') {
-            if (peek_c(l) == '\\') adv(l);  // skip escape char
-            if (peek_c(l) == '\n') { adv(l); newline(l); }
-            else adv(l);
+            if (peek_c(l) == '\\') {
+                adv(l);  // consume backslash
+                char esc = adv(l);
+                switch (esc) {
+                    case 'n':  buf[len++] = '\n'; break;
+                    case 't':  buf[len++] = '\t'; break;
+                    case 'r':  buf[len++] = '\r'; break;
+                    case '0':  buf[len++] = '\0'; break;
+                    case '\\': buf[len++] = '\\'; break;
+                    case '"':  buf[len++] = '"';  break;
+                    default:   buf[len++] = esc;  break;
+                }
+            } else {
+                char ch = adv(l);
+                if (ch == '\n') newline(l);
+                buf[len++] = ch;
+            }
+            if (len >= 4095)
+                lex_error(l, line, col, "string literal too long");
         }
         if (at_end(l))
             lex_error(l, line, col, "unterminated string literal");
-        size_t len = (size_t)(l->cur - start);
         adv(l);  // consume closing "
+        buf[len] = '\0';
         Tok t = make_tok(l, TOK_STRING, line, col);
-        t.strval.data = arena_strndup(l->arena, start, len);
+        t.strval.data = buf;
         t.strval.len  = len;
         return t;
     }

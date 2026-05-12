@@ -1,5 +1,6 @@
 // ─── check.c — Mol type checker ──────────────────────────────────────────────
 #include "check.h"
+#include "ast.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,25 +27,37 @@ Type *ty_type;
 static Type *ty_new(Arena *a, TyKind kind) {
     Type *t = arena_calloc(a, sizeof(Type));
     t->kind = kind;
+    t->size = 8;   // default: word-sized
     return t;
 }
 
 static Type *ty_int_new(Arena *a, IntKind k) {
     Type *t = ty_new(a, TY_INT);
     t->int_kind = k;
+    switch (k) {
+        case INT_KIND_I8 : case INT_KIND_U8 : case INT_KIND_CHAR: t->size = 1; break;
+        case INT_KIND_I16: case INT_KIND_U16:                     t->size = 2; break;
+        case INT_KIND_I32: case INT_KIND_U32: case INT_KIND_RUNE: t->size = 4; break;
+        default:                                                  t->size = 8; break;
+    }
     return t;
 }
 
 static Type *ty_ptr_new(Arena *a, Type *inner) {
     Type *t = ty_new(a, TY_PTR);
     t->ptr_inner = inner;
+    t->size      = 8;   // pointers are always word-sized
     return t;
 }
 
-static Type *ty_array_new(Arena *a, Type *inner, int size) {
+static Type *ty_array_new(Arena *a, Type *inner, int nelem) {
     Type *t = ty_new(a, TY_ARRAY);
     t->array.inner = inner;
-    t->array.size  = size;
+    t->array.size  = nelem;
+    // fixed array: nelem * elem_size; dynamic: pointer + length = 16
+    t->size = (nelem >= 0 && inner)
+            ? nelem * inner->size
+            : 16;
     return t;
 }
 
@@ -52,6 +65,7 @@ static Type *ty_tuple_new(Arena *a, Field *fields, int nfields) {
     Type *t = ty_new(a, TY_TUPLE);
     t->tuple.fields  = fields;
     t->tuple.nfields = nfields;
+    t->size          = nfields * 8;
     return t;
 }
 
@@ -59,12 +73,14 @@ static Type *ty_proc_new(Arena *a, Type *in, Type *out) {
     Type *t = ty_new(a, TY_PROC);
     t->proc.in  = in;
     t->proc.out = out;
+    t->size     = 8;   // proc is a pointer
     return t;
 }
 
 static Type *ty_const_new(Arena *a, Type *inner) {
     Type *t = ty_new(a, TY_CONST);
     t->const_inner = inner;
+    t->size        = inner ? inner->size : 8;
     return t;
 }
 
@@ -282,6 +298,7 @@ void checker_init(Checker *c, Arena *arena) {
                                   ty_ptr_new(arena, ty_u8), 8 };
     ty_string         = ty_new(arena, TY_RECORD);
     ty_string->record = strdef;
+    ty_string->size   = 16;  // length(8) + data_ptr(8)
 
     register_builtins(c);
 }
@@ -330,6 +347,13 @@ static void register_toplevel(Checker *c, Node *n) {
 
             Type *rec_type   = ty_new(c->arena, TY_RECORD);
             rec_type->record = def;
+            // size = fixed fields * 8; variant fields add to the max variant size
+            int max_variant = 0;
+            for (int vi = 0; vi < def->nvariants; vi++) {
+                int vsz = def->variant_nfields[vi] * 8;
+                if (vsz > max_variant) max_variant = vsz;
+            }
+            rec_type->size = def->nfields * 8 + max_variant;
             scope_define(c->arena, c->scope, n->record.name, SYM_RECORD, rec_type);
             break;
         }

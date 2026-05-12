@@ -21,7 +21,7 @@
 #include "lex.h"
 #include "parse.h"
 #include "check.h"
-#include "codegen.h"
+#include "ir.h"
 #include "dvm/asm.h"
 #include "dvm/linker.h"
 #include "dvm/vm.h"
@@ -90,6 +90,7 @@ int main(int argc, char **argv) {
     const char *src_path = NULL;
     const char *out_path = NULL;
     int         dump_asm = 0;
+    int         dump_ir  = 0;
     int         obj_only = 0;   // -c: stop after assembling, write object
 
     for (int i = 1; i < argc; i++) {
@@ -97,6 +98,8 @@ int main(int argc, char **argv) {
             usage();
         } else if (!strcmp(argv[i], "-S")) {
             dump_asm = 1;
+        } else if (!strcmp(argv[i], "-d")) {
+            dump_ir = 1;
         } else if (!strcmp(argv[i], "-c")) {
             obj_only = 1;
         } else if (!strcmp(argv[i], "-o")) {
@@ -138,11 +141,22 @@ int main(int argc, char **argv) {
     checker_init(&checker, &arena);
     check_file(&checker, ast);
 
-    // ── 5. codegen → assembly text ────────────────────────────────────────────
+    // ── 5. lower AST → IR ─────────────────────────────────────────────────────
 
-    CGen cgen;
-    cgen_init(&cgen, &arena);
-    const char *asm_text = cgen_file(&cgen, &checker, ast);
+    IrProg ir;
+    ir_init(&ir, &arena);
+    ir_lower(&ir, &checker, ast);
+
+    if (dump_ir) {
+        ir_dump(&ir, stdout);
+        arena_free(&arena);
+        free(src);
+        return 0;
+    }
+
+    // ── 6. codegen IR → assembly text ─────────────────────────────────────────
+
+    const char *asm_text = ir_codegen(&ir);
 
     if (dump_asm) {
         fputs(asm_text, stdout);
@@ -153,14 +167,14 @@ int main(int argc, char **argv) {
 
     // ── 6. assemble → DvmProg object ──────────────────────────────────────────
 
-    AsmCtx *asm_ctx = arena_alloc(&arena, sizeof(AsmCtx));
-    if (!asm_compile(asm_text, asm_ctx)) {
+    AsmCtx asm_ctx;
+    if (!asm_compile(asm_text, &asm_ctx)) {
         fputs("molc: assembly failed\n", stderr);
         exit(1);
     }
 
     DvmProg obj;
-    asm_to_prog(asm_ctx, &obj);
+    asm_to_prog(&asm_ctx, &obj);
 
     // ── 7. -c: write object file and stop ─────────────────────────────────────
 
@@ -184,8 +198,9 @@ int main(int argc, char **argv) {
     // ── 8. collect imports and link ───────────────────────────────────────────
 
     #define MAX_IMPORTS 64
-    DvmProg *import_objs = arena_calloc(&arena, sizeof(DvmProg) * (MAX_IMPORTS));
-    int     nimports = 0;
+    DvmProg *import_objs = calloc(MAX_IMPORTS, sizeof(DvmProg));
+    if (!import_objs) { fputs("molc: out of memory\n", stderr); exit(1); }
+    int nimports = 0;
 
     for (int i = 0; i < ast->block.nstmts; i++) {
         Node *n = ast->block.stmts[i];
@@ -201,27 +216,32 @@ int main(int argc, char **argv) {
         nimports++;
     }
 
-    DvmProg *all_objs = arena_calloc(&arena, sizeof(DvmProg)* (MAX_IMPORTS + 1));
+    DvmProg *all_objs = calloc((size_t)(nimports + 1), sizeof(DvmProg));
+    if (!all_objs) { fputs("molc: out of memory\n", stderr); exit(1); }
     all_objs[0] = obj;
     for (int i = 0; i < nimports; i++) all_objs[i + 1] = import_objs[i];
 
-    DvmProg exe;
-    if (!dvm_link(all_objs, (size_t)(nimports + 1), &exe, "main")) {
+    DvmProg *exe = calloc(1, sizeof(DvmProg));
+    if (!exe) { fputs("molc: out of memory\n", stderr); exit(1); }
+    if (!dvm_link(all_objs, (size_t)(nimports + 1), exe, "main")) {
         fputs("molc: link failed\n", stderr);
         exit(1);
     }
 
     for (int i = 0; i < nimports; i++) dvm_prog_free(&import_objs[i]);
+    free(import_objs);
+    free(all_objs);
 
     // ── 9a. write executable to file ──────────────────────────────────────────
 
     if (out_path) {
-        if (!dvm_write_file(out_path, &exe)) {
+        if (!dvm_write_file(out_path, exe)) {
             fprintf(stderr, "molc: failed to write '%s'\n", out_path);
             exit(1);
         }
         fprintf(stderr, "molc: wrote '%s'\n", out_path);
-        dvm_prog_free(&exe);
+        dvm_prog_free(exe);
+        free(exe);
         arena_free(&arena);
         free(src);
         return 0;
@@ -230,9 +250,23 @@ int main(int argc, char **argv) {
     // ── 9b. run in memory ─────────────────────────────────────────────────────
 
     #define STACK_SIZE (1024 * 1024)
-    vm_run(exe.code, STACK_SIZE);
+    if (!exe->has_entry) {
+        fputs("molc: no entry point found (define a 'main' proc)\n", stderr);
+        exit(1);
+    }
 
-    dvm_prog_free(&exe);
+    DvmLoaded img;
+    if (!dvm_load(exe, &img)) {
+        fputs("molc: failed to load executable\n", stderr);
+        exit(1);
+    }
+
+    vm_run(img.code + img.entry_offset, STACK_SIZE);
+
+    dvm_unload(&img);
+
+    dvm_prog_free(exe);
+    free(exe);
     arena_free(&arena);
     free(src);
     return 0;

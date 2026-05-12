@@ -58,6 +58,7 @@ struct RecordDef {
 
 struct Type {
     TyKind kind;
+    int    size;   // byte size, computed once by layout pass in checker
     union {
         // TY_INT
         IntKind int_kind;

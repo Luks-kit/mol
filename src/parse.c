@@ -453,7 +453,7 @@ static Node *parse_unary(Parser *p) {
     Loc l = loc(p);
     if (peek(p).kind == TOK_MINUS) { next(p); return ast_unop  (p->arena, l, UOP_NEG, parse_unary(p)); }
     if (peek(p).kind == TOK_TILDE) { next(p); return ast_unop  (p->arena, l, UOP_NOT, parse_unary(p)); }
-    if (peek(p).kind == TOK_AT)    { next(p); return ast_addrof(p->arena, l,           parse_unary(p)); }
+    if (peek(p).kind == TOK_AT)    { next(p); return ast_addrof(p->arena, l,              parse_unary(p)); }
     return parse_primary(p);
 }
 

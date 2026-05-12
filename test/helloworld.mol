@@ -1,10 +1,12 @@
 import "test/syscall.dvm"
 
-sys_write:(fd int, buf u8!, len uint) -> (n int)
+sys_write:(fd int, buf u8!, len uint) -> ()
 sys_exit:(code int) -> ()
+
+point:(x int, y int)
 
 main:() -> () do
     let msg string := "hello\n"
-    sys_write(1, msg:data, msg:length)
+    let bytes_written int := sys_write(1, msg:data, msg:length)
     sys_exit(0)
 end
